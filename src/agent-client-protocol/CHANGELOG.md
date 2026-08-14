@@ -51,6 +51,8 @@
 
 ### Fixed
 
+- Preserve v1 session configuration options on `ActiveSession` and when
+  reconstructing its `NewSessionResponse` for proxy handoff.
 - *(unstable-v2)* Preserve unknown initialize fields when the protocol router
   hands a same-version connection to its selected implementation.
 - *(unstable-v2)* Do not retain unhandled v2 session messages for a dynamic v1

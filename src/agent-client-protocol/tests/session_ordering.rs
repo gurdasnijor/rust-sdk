@@ -5,13 +5,14 @@ use agent_client_protocol::{
     SessionMessage, TransportBatch, TransportFrame,
     schema::v1::{
         ContentBlock, ContentChunk, NewSessionRequest, NewSessionResponse, PromptRequest,
-        PromptResponse, SessionId, SessionNotification, SessionUpdate, StopReason, TextContent,
+        PromptResponse, SessionConfigBoolean, SessionConfigKind, SessionConfigOption, SessionId,
+        SessionNotification, SessionUpdate, StopReason, TextContent,
     },
 };
-use futures::{
-    StreamExt as _,
-    channel::{mpsc, oneshot},
-};
+use futures::{StreamExt as _, channel::oneshot};
+
+#[cfg(feature = "unstable_protocol_v2")]
+use futures::channel::mpsc;
 
 #[cfg(feature = "unstable_protocol_v2")]
 use agent_client_protocol::{
@@ -102,6 +103,12 @@ async fn on_session_start_callback_can_consume_later_session_messages() {
     let session_id = SessionId::new("ordered-session");
     let new_session_id = session_id.clone();
     let prompt_session_id = session_id.clone();
+    let config_option = SessionConfigOption::new(
+        "fast",
+        "Fast",
+        SessionConfigKind::Boolean(SessionConfigBoolean::new(false)),
+    );
+    let response_config_option = config_option.clone();
 
     let agent = Agent
         .builder()
@@ -109,7 +116,10 @@ async fn on_session_start_callback_can_consume_later_session_messages() {
             async move |_request: NewSessionRequest,
                         responder: Responder<NewSessionResponse>,
                         _connection: ConnectionTo<Client>| {
-                responder.respond(NewSessionResponse::new(new_session_id.clone()))
+                responder.respond(
+                    NewSessionResponse::new(new_session_id.clone())
+                        .config_options(vec![response_config_option.clone()]),
+                )
             },
             agent_client_protocol::on_receive_request!(),
         )
@@ -136,6 +146,14 @@ async fn on_session_start_callback_can_consume_later_session_messages() {
             connection
                 .build_session_cwd()?
                 .on_session_start(async move |mut session| {
+                    assert_eq!(
+                        session.config_options(),
+                        Some([config_option.clone()].as_slice())
+                    );
+                    assert_eq!(
+                        session.response().config_options,
+                        Some(vec![config_option.clone()])
+                    );
                     session.send_prompt("test ordering")?;
                     let text = session.read_to_string().await?;
                     result_tx
