@@ -1052,10 +1052,10 @@ impl ComponentIndex {
         }
     }
 
-    /// Return the index for the predecessor of `proxy_index`, which might be `Client`.
+    /// Return the index for the successor of `proxy_index`, which might be `Agent`.
     #[must_use]
     pub fn successor_of(proxy_index: usize, num_proxies: usize) -> Self {
-        if proxy_index == num_proxies {
+        if proxy_index.checked_add(1) == Some(num_proxies) {
             ComponentIndex::Agent
         } else {
             ComponentIndex::Proxy(proxy_index + 1)
